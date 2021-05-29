@@ -1,0 +1,211 @@
+
+# load packages will need
+library(plyr); library(dplyr)
+library(ggthemes)
+library(ggplot2)
+library(readr)
+
+in_dir <- '/home/directory/'
+merged_data <- read_csv(paste0(in_dir, 'convergent_mi_band.csv'))
+
+# how many unique days?
+length(unique(merged_data$date))
+
+# head of df
+head(merged_data, 10) 
+
+## Correspondence Plots 
+## Correspondence Plots 
+## Correspondence Plots 
+## Correspondence Plots 
+## Correspondence Plots 
+## Correspondence Plots 
+
+
+# hourly step scatterplot
+ggplot(data = merged_data, aes(x = hourly_steps_new,   
+                               y = hourly_steps_old, 
+                               color = wrist_location_new)) +   
+  # each data point represented with a plot
+  geom_point() +   
+  # draw the identity line
+  geom_abline(intercept = 0, slope = 1, color = 'darkred',   
+              linetype = 2, size = 2, show.legend = TRUE) +  
+  # draw the regression line
+  geom_smooth(method="lm", fill=NA) +  
+  # economist theme: part 1
+  theme_economist_white() + 
+  # economist theme: part 2
+  scale_color_economist() +
+  # set the plot labels and title
+  labs(color='Wrist Location: New Mi Band',
+       x = "New Mi Band", 
+       y = "Old Mi Band", 
+       title = 'Correspondence Plot: Hourly Steps')   
+
+# what's the correlation between the two columns?  
+cor.test(merged_data$hourly_steps_new, merged_data$hourly_steps_old)  
+
+# cumulative step scatterplot
+ggplot(data = merged_data, aes(x = cumulative_daily_steps_new,   
+                               y = cumulative_daily_steps_old , 
+                               color = wrist_location_new)) +   
+  # each data point represented with a plot
+  geom_point() +
+  # draw the identity line
+  geom_abline(intercept = 0, slope = 1, color = 'darkred',   
+              linetype = 2, size = 2, show.legend = TRUE) + 
+  # draw the regression line
+  geom_smooth(method="lm", fill=NA) + 
+  # economist theme: part 1
+  theme_economist_white() + 
+  # economist theme: part 2
+  scale_color_economist() +
+  # set the plot labels and title
+  labs(color='Wrist Location: New Mi Band',
+       x = "New Mi Band", 
+       y = "Old Mi Band", 
+       title = 'Correspondence Plot: Cumulative Daily Steps')   
+
+# what's the correlation between the two columns?  
+cor.test(merged_data$cumulative_daily_steps_new, merged_data$cumulative_daily_steps_old)  
+
+## Bland Altman Plots 
+## Bland Altman Plots 
+## Bland Altman Plots 
+## Bland Altman Plots 
+## Bland Altman Plots 
+## Bland Altman Plots 
+
+
+# Bland Altman plot - hourly step counts
+# color the points  
+# by wrist location  
+library(BlandAltmanLeh)  
+pal <- economist_pal()(2)
+position_color <- ifelse(merged_data$wrist_location_new == 'Lower', pal[1], pal[2])
+bland.altman.plot(merged_data$hourly_steps_new, merged_data$hourly_steps_old, conf.int=.95,  
+                  main="Bland Altman Plot: Hourly Step Counts",   
+                  xlab="Mean of Measurements", ylab="Differences",   
+                  pch = 19, col = position_color)  
+legend(x = "topright", legend = c("New Mi Band: Lower","New Mi Band: Upper"), fill = pal)  
+
+# calculate the mean, standard deviation  
+# and the one-sample t-test against zero  
+mean(merged_data$hour_diff_new_old)  
+sd(merged_data$hour_diff_new_old)  
+t.test(merged_data$hour_diff_new_old, mu=0,   
+       alternative="two.sided", conf.level=0.95)
+
+# for both devices, what's the average hourly step count
+merged_data %>% ungroup() %>% select(hourly_steps_new) %>% 
+  summarize(hourly_new = mean(hourly_steps_new)) 
+merged_data %>% ungroup() %>% select(hourly_steps_old) %>% 
+  summarize(hourly_old = mean(hourly_steps_old)) 
+
+
+# Bland Altman plot - cumulative step counts
+# color the points  
+# by wrist location  
+bland.altman.plot(merged_data$cumulative_daily_steps_new, merged_data$cumulative_daily_steps_old, conf.int=.95,  
+                  main="Bland Altman Plot: Cumulative Step Counts",   
+                  xlab="Mean of Measurements", ylab="Differences",   
+                  pch = 19, col = position_color)  
+legend(x = "topleft", legend = c("New Mi Band: Lower","New Mi Band: Upper"), fill = pal)  
+
+# calculate the mean, standard deviation  
+# and the one-sample t-test against zero  
+mean(merged_data$cumulative_diff_new_old)  
+sd(merged_data$cumulative_diff_new_old)  
+t.test(merged_data$cumulative_diff_new_old, mu=0,   
+       alternative="two.sided", conf.level=0.95)  
+
+# for both devices, what's the average daily total step count
+merged_data %>% ungroup() %>%# group_by(date) %>%
+  # summarize(cum_daily_new = max(cumulative_daily_steps_new)) %>%
+  summarize(mean_cum_new = mean(cumulative_daily_steps_new))
+
+merged_data %>%  ungroup() %>%# group_by(date) %>%
+  #summarize(daily_old = max(daily_total_old)) %>%
+  # summarize(mean_old = mean(daily_old))
+  summarize(mean_cum_old = mean(cumulative_daily_steps_old))
+
+## Plot Differences Across Hour of the Day
+## Plot Differences Across Hour of the Day
+## Plot Differences Across Hour of the Day
+## Plot Differences Across Hour of the Day
+## Plot Differences Across Hour of the Day
+## Plot Differences Across Hour of the Day
+
+# hourly step count differences across the day
+merged_data %>% 
+  # group the data by hour and device position
+  group_by(hour, wrist_location_new) %>%
+  # calculate the mean, sd and se (for confidence intervals)
+  summarize(mean_hour_diff_new_old = mean(hour_diff_new_old),
+            sd_hour_diff_new_old = sd(hour_diff_new_old),
+            n = n(),
+            se = sd_hour_diff_new_old/sqrt(n)) %>%  
+  # pass the data to ggplot
+  ggplot(., aes(x = as.factor(hour),   
+                y = mean_hour_diff_new_old, 
+                fill = wrist_location_new)) +  
+  # we want a barplot
+  geom_bar(stat='identity') +  
+  # add the confidence intervals to the plot
+  # (it's the standard error * 1.96 above/below the mean)
+  geom_errorbar(aes(ymin=mean_hour_diff_new_old-1.96*se, 
+                    ymax=mean_hour_diff_new_old+1.96*se), width=.2,
+                position=position_dodge(.9))  +
+  # use the economist color palette for the bars
+  scale_fill_manual(values = pal) + 
+  # white economist theme background
+  theme_economist_white() + 
+  # set the plot labels and title
+  labs(fill='Wrist Location: New Mi Band',
+       x = "Hour of Day", 
+       y = "Difference Hourly Steps (New - Old)", 
+       title = 'Hourly Step Differences Across Hour of Day by Wrist Location') +
+  # facet the plot by device location
+  facet_wrap(~ wrist_location_new)
+
+# cumulative step count differences across the day
+merged_data %>% 
+  # group the data by hour and device position
+  group_by(hour, wrist_location_new) %>%
+  # calculate the mean, sd and se (for confidence intervals)
+  summarize(mean_cumul_diff_new_old = mean(cumulative_diff_new_old),
+            sd_cumul_diff_new_old = sd(cumulative_diff_new_old),
+            n = n(),
+            se = sd_cumul_diff_new_old/sqrt(n)) %>%  
+  # pass the data to ggplot
+  ggplot(., aes(x = as.factor(hour),   
+                y = mean_cumul_diff_new_old, 
+                fill = wrist_location_new)) + 
+  # we want a barplot
+  geom_bar(stat='identity') +   
+  # add the confidence intervals to the plot
+  # (it's the standard error * 1.96 above/below the mean)
+  geom_errorbar(aes(ymin=mean_cumul_diff_new_old-1.96*se, 
+                    ymax=mean_cumul_diff_new_old+1.96*se), width=.2,
+                position=position_dodge(.9)) +
+  # use the economist color palette for the bars
+  scale_fill_manual(values = pal) + 
+  # white economist theme background
+  theme_economist_white() + 
+  # set the plot labels and title
+  labs(fill='Wrist Location: New Mi Band',
+       x = "Hour of Day", 
+       y = "Difference Cumulative Steps (New - Old)", 
+       title = 'Cumulative Step Differences Across Hour of Day by Wrist Location') +
+  # facet the plot by device location
+  facet_wrap(~ wrist_location_new)
+
+# average step count at 11 PM - new mi band
+merged_data %>% ungroup() %>% filter(hour ==23) %>% select(daily_total_new) %>%
+  summarize(mean_daily_total_new = mean(daily_total_new))
+
+# average step count at 11 PM - old mi band
+merged_data %>% ungroup() %>% filter(hour ==23) %>% select(daily_total_old) %>%
+  summarize(mean_daily_total_old = mean(daily_total_old))
+
